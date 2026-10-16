@@ -1,0 +1,12 @@
+# FastAPI
+fastapi
+uvicorn
+pydantic
+pydantic-settings
+
+# DATABASE
+sqlalchemy
+psycopg2-binary
+
+# Utilities
+python-dotenv

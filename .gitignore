@@ -1,0 +1,88 @@
+# ==============================================================================
+# Git Ignore Configuration for Full-Stack To-Do App (FastAPI + React Vite)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Environment & Secrets (CRITICAL: Never commit credentials to GitHub!)
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.env
+
+# ------------------------------------------------------------------------------
+# 2. Python & FastAPI Backend
+# ------------------------------------------------------------------------------
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+*.spec
+
+# SQLite databases (if used locally)
+*.db
+*.sqlite3
+
+# ------------------------------------------------------------------------------
+# 3. Node.js & React Frontend
+# ------------------------------------------------------------------------------
+# Dependencies
+node_modules/
+frontend/node_modules/
+.pnp
+.pnp.js
+
+# Production Build Output
+frontend/dist/
+frontend/dist-ssr/
+dist/
+
+# NPM / Yarn / PNPM debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Vite cache & local overrides
+.vite/
+frontend/.vite/
+*.local
+
+# ------------------------------------------------------------------------------
+# 4. Operating System & Editor Files
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDEs & Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.sublime-workspace
+*.sublime-project
