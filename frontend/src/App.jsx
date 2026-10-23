@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import TopNav from './components/TopNav';
 import MetricCards from './components/MetricCards';
 import TaskItem from './components/TaskItem';
 import TaskModal from './components/TaskModal';
+import MobileHeader from './components/MobileHeader';
+import MobileBottomNav from './components/MobileBottomNav';
 import { getTasks, createTask, updateTask, deleteTask } from './api';
 import './App.css';
 
 /**
  * Main Application Component
- * Implements the full dashboard design matching the reference screenshot.
+ * Implements the full dashboard design for Desktop AND
+ * the dedicated Mobile View matching the provided mockup image.
  */
 export default function App() {
   const [tasks, setTasks] = useState([]);
@@ -29,6 +32,28 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [showTips, setShowTips] = useState(false);
+
+  // Mobile specific UI states
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [showMobileFilter, setShowMobileFilter] = useState(false);
+  const [showMobileSort, setShowMobileSort] = useState(false);
+
+  const mobileFilterRef = useRef(null);
+  const mobileSortRef = useRef(null);
+
+  // Close mobile popovers on outside click
+  useEffect(() => {
+    function handleOutsideClick(e) {
+      if (mobileFilterRef.current && !mobileFilterRef.current.contains(e.target)) {
+        setShowMobileFilter(false);
+      }
+      if (mobileSortRef.current && !mobileSortRef.current.contains(e.target)) {
+        setShowMobileSort(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -167,6 +192,10 @@ export default function App() {
       title: 'Completed',
       subtitle: 'Great job! Here is everything you have accomplished.',
     },
+    remaining: {
+      title: 'Remaining',
+      subtitle: 'All tasks that still need to be done.',
+    },
   };
 
   // 6. Filter & Sort Tasks
@@ -184,6 +213,9 @@ export default function App() {
       );
     } else if (activeTab === 'completed') {
       result = result.filter((t) => t.is_completed);
+    } else if (activeTab === 'remaining') {
+      // All incomplete tasks regardless of date
+      result = result.filter((t) => !t.is_completed);
     }
 
     // Filter by Priority
@@ -226,9 +258,16 @@ export default function App() {
     return result;
   }, [tasks, activeTab, priorityFilter, searchQuery, sortBy, todayStr]);
 
+  const sortLabels = {
+    due_date: 'Due date',
+    priority: 'Priority',
+    title: 'Title',
+    created_at: 'Date created',
+  };
+
   return (
     <div className="layout-root">
-      {/* 1. Left Sidebar */}
+      {/* 1. Left Sidebar (Desktop Only) */}
       <Sidebar
         currentTab={activeTab}
         setTab={setActiveTab}
@@ -238,7 +277,7 @@ export default function App() {
 
       {/* 2. Main Content Area */}
       <main className="layout-main">
-        {/* Top Navbar */}
+        {/* Top Navbar (Desktop Only) */}
         <TopNav
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -246,6 +285,16 @@ export default function App() {
           setPriorityFilter={setPriorityFilter}
           onOpenAddModal={handleOpenAdd}
           isOnline={isOnline}
+        />
+
+        {/* Dedicated Mobile Header (Mobile Only) */}
+        <MobileHeader
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          onToggleMenu={() => setIsMobileDrawerOpen(true)}
+          onOpenProfile={() => setShowTips(true)}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
         />
 
         {/* Global Toast Banner */}
@@ -269,15 +318,21 @@ export default function App() {
             <p className="dashboard-subtitle">{tabHeaders[activeTab]?.subtitle}</p>
           </section>
 
-          {/* Metric Stats Cards */}
+          {/* Metric Stats Cards (3 cards row with active highlight matching mockup) */}
           <MetricCards
             total={counts.total}
             completed={counts.completed}
             remaining={counts.remaining}
+            activeTab={activeTab}
+            onSelectTab={setActiveTab}
           />
 
-          {/* Controls Bar: View Selector and Sort By */}
+          {/* Controls Bar:
+              Desktop: "My tasks" on left, "Sort by" on right
+              Mobile: "Filter" and "Sort ˅" aligned to right as seen in reference image
+          */}
           <div className="tasks-control-bar">
+            {/* Desktop Left: My Tasks Indicator */}
             <div className="control-left-view">
               <svg className="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="8" y1="6" x2="21" y2="6"></line>
@@ -293,13 +348,115 @@ export default function App() {
               </svg>
             </div>
 
+            {/* Mobile Filter & Sort Actions (Matching reference image) */}
+            <div className="mobile-actions-row">
+              {/* Filter Button */}
+              <div className="mobile-action-dropdown-wrap" ref={mobileFilterRef}>
+                <button
+                  type="button"
+                  className={`mobile-pill-btn ${priorityFilter !== 'all' ? 'active' : ''}`}
+                  onClick={() => setShowMobileFilter(!showMobileFilter)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <line x1="4" y1="7" x2="20" y2="7"></line>
+                    <line x1="7" y1="12" x2="17" y2="12"></line>
+                    <line x1="10" y1="17" x2="14" y2="17"></line>
+                  </svg>
+                  <span>{priorityFilter === 'all' ? 'Filter' : `Filter (${priorityFilter})`}</span>
+                </button>
+
+                {showMobileFilter && (
+                  <div className="mobile-popover-menu">
+                    <div className="popover-title">Priority Filter</div>
+                    <button
+                      className={`popover-item ${priorityFilter === 'all' ? 'selected' : ''}`}
+                      onClick={() => {
+                        setPriorityFilter('all');
+                        setShowMobileFilter(false);
+                      }}
+                    >
+                      All Priorities
+                    </button>
+                    <button
+                      className={`popover-item ${priorityFilter === 'high' ? 'selected' : ''}`}
+                      onClick={() => {
+                        setPriorityFilter('high');
+                        setShowMobileFilter(false);
+                      }}
+                    >
+                      <span className="dot dot-high"></span> High
+                    </button>
+                    <button
+                      className={`popover-item ${priorityFilter === 'medium' ? 'selected' : ''}`}
+                      onClick={() => {
+                        setPriorityFilter('medium');
+                        setShowMobileFilter(false);
+                      }}
+                    >
+                      <span className="dot dot-medium"></span> Medium
+                    </button>
+                    <button
+                      className={`popover-item ${priorityFilter === 'low' ? 'selected' : ''}`}
+                      onClick={() => {
+                        setPriorityFilter('low');
+                        setShowMobileFilter(false);
+                      }}
+                    >
+                      <span className="dot dot-low"></span> Low
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Sort Button */}
+              <div className="mobile-action-dropdown-wrap" ref={mobileSortRef}>
+                <button
+                  type="button"
+                  className="mobile-pill-btn"
+                  onClick={() => setShowMobileSort(!showMobileSort)}
+                >
+                  <span>Sort</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+
+                {showMobileSort && (
+                  <div className="mobile-popover-menu">
+                    <div className="popover-title">Sort Tasks By</div>
+                    {Object.entries(sortLabels).map(([key, label]) => (
+                      <button
+                        key={key}
+                        className={`popover-item ${sortBy === key ? 'selected' : ''}`}
+                        onClick={() => {
+                          setSortBy(key);
+                          setShowMobileSort(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Desktop Right: Sort By */}
             <div className="control-right-sort">
               <span className="sort-label">
-                <svg className="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M7 15l5 5 5-5"></path>
-                  <path d="M7 9l5-5 5-5"></path>
+                <svg
+                  className="sort-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m7 15 5 5 5-5"></path>
+                  <path d="m7 9 5-5 5 5"></path>
                 </svg>
-                Sort by
+                <span>Sort by</span>
               </span>
               <div className="sort-select-wrapper">
                 <select
@@ -328,18 +485,59 @@ export default function App() {
               </div>
             ) : filteredAndSortedTasks.length === 0 ? (
               <div className="empty-tasks-placeholder">
-                <div className="empty-illustration">📝</div>
-                <h3 className="empty-heading">No tasks found</h3>
+                <div className="empty-illustration">
+                  {searchQuery || priorityFilter !== 'all' ? '🔍' : activeTab === 'completed' ? '🎉' : '📝'}
+                </div>
+                <h3 className="empty-heading">
+                  {searchQuery || priorityFilter !== 'all'
+                    ? 'No matching tasks'
+                    : activeTab === 'completed'
+                      ? 'No completed tasks yet'
+                      : activeTab === 'today'
+                        ? 'No tasks for today'
+                        : activeTab === 'upcoming'
+                          ? 'No upcoming tasks'
+                          : 'No tasks yet'}
+                </h3>
                 <p className="empty-text">
                   {searchQuery
                     ? 'No tasks matched your search term.'
-                    : activeTab === 'completed'
-                    ? 'No completed tasks yet. Check off tasks when you finish them!'
-                    : 'Get started by creating your first task.'}
+                    : priorityFilter !== 'all'
+                      ? `No tasks found with "${priorityFilter}" priority.`
+                      : activeTab === 'completed'
+                        ? 'Tasks marked as completed will appear here.'
+                        : activeTab === 'today'
+                          ? 'You have no tasks scheduled for today.'
+                          : 'Get started by creating your first task.'}
                 </p>
-                <button className="btn-add-task-empty" onClick={handleOpenAdd}>
-                  + Add Task
-                </button>
+                {searchQuery || priorityFilter !== 'all' ? (
+                  <button
+                    type="button"
+                    className="btn-clear-filter-empty"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setPriorityFilter('all');
+                    }}
+                  >
+                    Clear Filter
+                  </button>
+                ) : activeTab === 'completed' ? (
+                  <button
+                    type="button"
+                    className="btn-clear-filter-empty"
+                    onClick={() => setActiveTab('all')}
+                  >
+                    View All Tasks
+                  </button>
+                ) : (
+                  <button type="button" className="btn-add-task-empty" onClick={handleOpenAdd}>
+                    <svg className="btn-add-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Add Task</span>
+                  </button>
+                )}
               </div>
             ) : (
               filteredAndSortedTasks.map((task) => (
@@ -354,7 +552,130 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {/* Floating "Add Task" Button (Mobile View - Exactly matches screenshot position) */}
+        <button
+          type="button"
+          className="mobile-floating-add-btn"
+          onClick={handleOpenAdd}
+          aria-label="Add new task"
+        >
+          <svg className="btn-add-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Add Task</span>
+        </button>
+
+        {/* Mobile Bottom Navigation Bar (Fixed at the bottom) */}
+        <MobileBottomNav
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          onOpenSettings={() => setShowTips(true)}
+        />
       </main>
+
+      {/* Mobile Slide-Out Drawer Navigation */}
+      {isMobileDrawerOpen && (
+        <div className="mobile-drawer-backdrop" onClick={() => setIsMobileDrawerOpen(false)}>
+          <aside className="mobile-drawer-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-drawer-header">
+              <div className="sidebar-brand">
+                <div className="brand-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span className="brand-name">Tasks</span>
+              </div>
+              <button
+                type="button"
+                className="mobile-drawer-close"
+                onClick={() => setIsMobileDrawerOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Mobile Search Input in Drawer */}
+            <div className="mobile-drawer-search">
+              <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                type="text"
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className="search-clear-btn" onClick={() => setSearchQuery('')}>×</button>
+              )}
+            </div>
+
+            {/* Drawer Navigation Links */}
+            <nav className="mobile-drawer-nav">
+              <button
+                className={`mobile-drawer-nav-item ${activeTab === 'all' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('all');
+                  setIsMobileDrawerOpen(false);
+                }}
+              >
+                <span>📋 All Tasks</span>
+                <span className="nav-badge">{counts.total}</span>
+              </button>
+              <button
+                className={`mobile-drawer-nav-item ${activeTab === 'today' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('today');
+                  setIsMobileDrawerOpen(false);
+                }}
+              >
+                <span>📅 Today</span>
+                <span className="nav-badge">{counts.today}</span>
+              </button>
+              <button
+                className={`mobile-drawer-nav-item ${activeTab === 'upcoming' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('upcoming');
+                  setIsMobileDrawerOpen(false);
+                }}
+              >
+                <span>⏰ Upcoming</span>
+                <span className="nav-badge">{counts.upcoming}</span>
+              </button>
+              <button
+                className={`mobile-drawer-nav-item ${activeTab === 'completed' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('completed');
+                  setIsMobileDrawerOpen(false);
+                }}
+              >
+                <span>✅ Completed</span>
+                <span className="nav-badge">{counts.completed}</span>
+              </button>
+            </nav>
+
+            <div className="mobile-drawer-footer">
+              <button
+                className="mobile-drawer-tips-btn"
+                onClick={() => {
+                  setIsMobileDrawerOpen(false);
+                  setShowTips(true);
+                }}
+              >
+                💡 Productivity Tips
+              </button>
+              <div className="mobile-drawer-status">
+                <span className={`nav-dot ${isOnline ? 'online-dot' : 'offline-dot'}`}></span>
+                <span>{isOnline ? 'Backend Connected' : 'Offline Mode'}</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
 
       {/* Task Modal (Add / Edit) */}
       <TaskModal
